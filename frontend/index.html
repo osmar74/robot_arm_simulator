@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RoboArm Simulator</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       NAVBAR
+  ═══════════════════════════════════════════ -->
+  <nav class="navbar">
+    <div class="navbar-logo">⚙ ROBOARM</div>
+    <span class="navbar-label">Control Panel</span>
+
+    <div class="navbar-tabs">
+      <button class="tab-btn active" onclick="setTab(this, 'sim')">Simulador</button>
+      <button class="tab-btn" onclick="setTab(this, 'info')">Cinemática</button>
+      <button class="tab-btn" onclick="setTab(this, 'about')">Acerca de</button>
+    </div>
+
+    <div class="navbar-user">
+      <div class="user-avatar">🤖</div>
+      <span class="user-name">Operador</span>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════
+       LAYOUT PRINCIPAL
+  ═══════════════════════════════════════════ -->
+  <div class="main-layout">
+
+    <!-- ─── PANEL IZQUIERDO ─── -->
+    <aside class="panel-left">
+      <div class="panel-header">
+        <div class="panel-header-dot"></div>
+        <h2>Articulaciones</h2>
+      </div>
+
+      <div class="panel-body">
+
+        <!-- Tarjeta: BASE -->
+        <div class="joint-card" id="card-base">
+          <div class="joint-card-header">
+            <div>
+              <div class="joint-name">Base</div>
+              <span class="joint-axis-badge axis-y">Eje Y</span>
+            </div>
+            <div class="joint-angle" id="angle-base">0.0°</div>
+          </div>
+          <div class="joint-bar-track">
+            <div class="joint-bar-fill" id="bar-base" style="width:50%"></div>
+          </div>
+          <div class="joint-controls">
+            <button class="ctrl-btn" onclick="moveJoint('base', -1)">−</button>
+            <button class="ctrl-btn" onclick="moveJoint('base', 1)">+</button>
+          </div>
+          <div class="step-selector">
+            <span class="step-label">Paso:</span>
+            <select class="step-select" id="step-base">
+              <option value="5">5°</option>
+              <option value="10" selected>10°</option>
+              <option value="15">15°</option>
+              <option value="30">30°</option>
+              <option value="45">45°</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Tarjeta: SHOULDER -->
+        <div class="joint-card" id="card-shoulder">
+          <div class="joint-card-header">
+            <div>
+              <div class="joint-name">Hombro</div>
+              <span class="joint-axis-badge axis-z">Eje Z</span>
+            </div>
+            <div class="joint-angle" id="angle-shoulder">0.0°</div>
+          </div>
+          <div class="joint-bar-track">
+            <div class="joint-bar-fill" id="bar-shoulder" style="width:0%"></div>
+          </div>
+          <div class="joint-controls">
+            <button class="ctrl-btn" onclick="moveJoint('shoulder', -1)">−</button>
+            <button class="ctrl-btn" onclick="moveJoint('shoulder', 1)">+</button>
+          </div>
+          <div class="step-selector">
+            <span class="step-label">Paso:</span>
+            <select class="step-select" id="step-shoulder">
+              <option value="5">5°</option>
+              <option value="10" selected>10°</option>
+              <option value="15">15°</option>
+              <option value="30">30°</option>
+              <option value="45">45°</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Tarjeta: ELBOW -->
+        <div class="joint-card" id="card-elbow">
+          <div class="joint-card-header">
+            <div>
+              <div class="joint-name">Codo</div>
+              <span class="joint-axis-badge axis-x">Eje X</span>
+            </div>
+            <div class="joint-angle" id="angle-elbow">0.0°</div>
+          </div>
+          <div class="joint-bar-track">
+            <div class="joint-bar-fill" id="bar-elbow" style="width:50%"></div>
+          </div>
+          <div class="joint-controls">
+            <button class="ctrl-btn" onclick="moveJoint('elbow', -1)">−</button>
+            <button class="ctrl-btn" onclick="moveJoint('elbow', 1)">+</button>
+          </div>
+          <div class="step-selector">
+            <span class="step-label">Paso:</span>
+            <select class="step-select" id="step-elbow">
+              <option value="5">5°</option>
+              <option value="10" selected>10°</option>
+              <option value="15">15°</option>
+              <option value="30">30°</option>
+              <option value="45">45°</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Tarjeta: WRIST -->
+        <div class="joint-card" id="card-wrist">
+          <div class="joint-card-header">
+            <div>
+              <div class="joint-name">Muñeca</div>
+              <span class="joint-axis-badge axis-y">Eje Y</span>
+            </div>
+            <div class="joint-angle" id="angle-wrist">0.0°</div>
+          </div>
+          <div class="joint-bar-track">
+            <div class="joint-bar-fill" id="bar-wrist" style="width:50%"></div>
+          </div>
+          <div class="joint-controls">
+            <button class="ctrl-btn" onclick="moveJoint('wrist', -1)">−</button>
+            <button class="ctrl-btn" onclick="moveJoint('wrist', 1)">+</button>
+          </div>
+          <div class="step-selector">
+            <span class="step-label">Paso:</span>
+            <select class="step-select" id="step-wrist">
+              <option value="5">5°</option>
+              <option value="10" selected>10°</option>
+              <option value="15">15°</option>
+              <option value="30">30°</option>
+              <option value="45">45°</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Botón Reset -->
+        <button class="btn-reset" onclick="resetArm()">↺ Restablecer posición</button>
+
+        <!-- Estado / mensaje -->
+        <div class="status-section">
+          <div class="status-title">Estado del sistema</div>
+          <div class="status-msg" id="status-msg">Listo.</div>
+        </div>
+
+      </div><!-- /panel-body -->
+    </aside>
+
+    <!-- ─── PANEL DERECHO (canvas) ─── -->
+    <section class="panel-right">
+      <div class="canvas-header">
+        <span class="canvas-title">Vista 3D — Proyección Isométrica</span>
+        <div class="canvas-coords">
+          <div class="coord-item"><span>X:</span><b id="coord-x">0.0</b></div>
+          <div class="coord-item"><span>Y:</span><b id="coord-y">0.0</b></div>
+          <div class="coord-item"><span>Z:</span><b id="coord-z">0.0</b></div>
+        </div>
+      </div>
+      <div class="canvas-wrapper">
+        <canvas id="robotCanvas"></canvas>
+      </div>
+    </section>
+
+  </div><!-- /main-layout -->
+
+  <!-- Notificación flash -->
+  <div class="flash-msg" id="flash-msg"></div>
+
+  <!-- Scripts -->
+  <script src="/static/js/renderer.js"></script>
+  <script src="/static/js/robot.js"></script>
+
+</body>
+</html>

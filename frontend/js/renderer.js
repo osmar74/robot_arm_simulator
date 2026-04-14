@@ -1,60 +1,69 @@
 // frontend/js/renderer.js
-// Motor de renderizado del brazo robótico sobre cuadrícula isométrica
+// Motor de renderizado — Cuadrícula isométrica con Z vertical (arriba)
+// Ejes: X = derecha, Y = profundidad, Z = vertical
 
 const Renderer = (() => {
 
-  // ─── Referencias al canvas ───────────────────────────────────────────────
+  // ─── Referencias al canvas ────────────────────────────────────────────────
   let canvas, ctx;
-  let W, H;             // Dimensiones actuales del canvas en píxeles
-  let origin;           // Centro de proyección isométrica {x, y}
+  let W, H;
+  let origin;   // Centro de la proyección en pantalla
 
-  // ─── Paleta de colores ───────────────────────────────────────────────────
+  // ─── Paleta de colores ────────────────────────────────────────────────────
   const COLOR = {
-    bg:           '#0a1628',
-    grid:         'rgba(30, 80, 140, 0.35)',
-    gridAccent:   'rgba(0, 170, 255, 0.12)',
-    axisX:        '#ff6b35',
+    bg:           '#0a0f1a',
+    grid:         'rgba(200, 220, 255, 0.18)',
+    gridCenter:   'rgba(200, 220, 255, 0.40)',
+    axisX:        '#ff3333',
     axisY:        '#00ff88',
-    axisZ:        '#00aaff',
-    axisLabel:    '#e2e8f0',
-    baseCircle:   'rgba(0, 255, 136, 0.15)',
+    axisZ:        '#3399ff',
+    axisLabel:    '#ffffff',
+    baseCircle:   'rgba(0, 255, 136, 0.12)',
     baseStroke:   '#00ff88',
     segment:      '#00ff88',
-    segmentGlow:  'rgba(0, 255, 136, 0.4)',
+    segmentGlow:  'rgba(0, 255, 136, 0.35)',
     joint:        '#ffffff',
     jointStroke:  '#00ff88',
     tip:          '#ff6b35',
-    tipGlow:      'rgba(255, 107, 53, 0.5)',
-    shadow:       'rgba(0, 255, 136, 0.08)',
+    tipGlow:      'rgba(255, 107, 53, 0.45)',
+    shadow:       'rgba(0, 255, 136, 0.06)',
   };
 
-  // ─── Parámetros de la cuadrícula ─────────────────────────────────────────
-  const GRID = {
-    step: 40,       // Tamaño de cada celda en unidades
-    count: 8,       // Celdas en cada dirección
-    isoAngle: 30,   // Ángulo isométrico en grados
-  };
+  // ─── Parámetros de la cuadrícula ──────────────────────────────────────────
+  const GRID_STEP  = 38;   // Tamaño de cada celda (px)
+  const GRID_COUNT = 8;    // Celdas en cada dirección desde el origen
 
-  // ─── Matemáticas isométricas ─────────────────────────────────────────────
-  const ISO_COS = Math.cos(GRID.isoAngle * Math.PI / 180);  // ≈ 0.866
-  const ISO_SIN = Math.sin(GRID.isoAngle * Math.PI / 180);  // ≈ 0.500
+  // ─── Proyección isométrica (Z = vertical) ─────────────────────────────────
+  // Ejes del plano: X (derecha-abajo), Y (izquierda-abajo)
+  // Eje vertical:  Z (arriba-abajo)
+  //
+  //   px = origin.x + (x - y) * cos(30°)
+  //   py = origin.y - z       + (x + y) * sin(30°)
+  //
+  const COS30 = Math.cos(30 * Math.PI / 180);  // ≈ 0.866
+  const SIN30 = Math.sin(30 * Math.PI / 180);  // ≈ 0.500
 
-  /**
-   * Convierte coordenadas 3D (x, y, z) a píxeles 2D en el canvas.
-   * Usa la misma fórmula que kinematics.py para consistencia.
-   */
   function iso(x, y, z) {
     return {
-      x: origin.x + (x - z) * ISO_COS,
-      y: origin.y - y + (x + z) * ISO_SIN
+      x: origin.x + (x - y) * COS30,
+      y: origin.y - z        + (x + y) * SIN30
     };
+  }
+
+  /**
+   * Convierte coordenadas del backend a pantalla.
+   * Backend usa: bx=derecha, by=altura, bz=profundidad
+   * Display usa: x=bx, y=bz(profundidad), z=by(altura→arriba)
+   */
+  function isoBackend(bx, by, bz) {
+    return iso(bx, bz, by);
   }
 
   // ─── Inicialización ───────────────────────────────────────────────────────
 
   function init(canvasId) {
     canvas = document.getElementById(canvasId);
-    ctx = canvas.getContext('2d');
+    ctx    = canvas.getContext('2d');
     resize();
     window.addEventListener('resize', resize);
   }
@@ -65,228 +74,259 @@ const Renderer = (() => {
     H = wrapper.clientHeight - 16;
     canvas.width  = W;
     canvas.height = H;
-
-    // El origen isométrico se ubica en el centro-bajo del canvas
-    // Igual que CANVAS_ORIGIN en robot_controller.py
-    origin = { x: W * 0.52, y: H * 0.72 };
+    // Origen en centro horizontal, 60% vertical
+    // Deja espacio arriba para el brazo y abajo para la cuadrícula
+    origin = { x: W * 0.50, y: H * 0.60 };
   }
 
-  // ─── Dibujo de la cuadrícula isométrica ──────────────────────────────────
+  // ─── Cuadrícula isométrica ────────────────────────────────────────────────
+  // La cuadrícula está en el plano Z=0 (el suelo)
+  // Líneas corren en dirección X (variando X, Y fijo) y
+  //              en dirección Y (variando Y, X fijo)
 
   function drawGrid() {
-    const n = GRID.count;
-    const s = GRID.step;
+    const n = GRID_COUNT;
+    const s = GRID_STEP;
 
     ctx.save();
+    ctx.lineCap = 'round';
 
-    // Líneas en dirección X (de Z=0 a Z=n*s, variando X)
     for (let i = -n; i <= n; i++) {
-      const p1 = iso(i * s, 0, -n * s);
-      const p2 = iso(i * s, 0,  n * s);
+      const isCenter = i === 0;
+
+      // Líneas paralelas al eje X (Y varía, X recorre todo el rango)
+      const a1 = iso(-n * s, i * s, 0);
+      const a2 = iso( n * s, i * s, 0);
       ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.strokeStyle = i === 0 ? COLOR.gridAccent : COLOR.grid;
-      ctx.lineWidth = i === 0 ? 0.8 : 0.4;
+      ctx.moveTo(a1.x, a1.y);
+      ctx.lineTo(a2.x, a2.y);
+      ctx.strokeStyle = isCenter ? COLOR.gridCenter : COLOR.grid;
+      ctx.lineWidth   = isCenter ? 0.9 : 0.5;
       ctx.stroke();
-    }
 
-    // Líneas en dirección Z (de X=-n*s a X=n*s, variando Z)
-    for (let i = -n; i <= n; i++) {
-      const p1 = iso(-n * s, 0, i * s);
-      const p2 = iso( n * s, 0, i * s);
+      // Líneas paralelas al eje Y (X varía, Y recorre todo el rango)
+      const b1 = iso(i * s, -n * s, 0);
+      const b2 = iso(i * s,  n * s, 0);
       ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.strokeStyle = i === 0 ? COLOR.gridAccent : COLOR.grid;
-      ctx.lineWidth = i === 0 ? 0.8 : 0.4;
+      ctx.moveTo(b1.x, b1.y);
+      ctx.lineTo(b2.x, b2.y);
+      ctx.strokeStyle = isCenter ? COLOR.gridCenter : COLOR.grid;
+      ctx.lineWidth   = isCenter ? 0.9 : 0.5;
       ctx.stroke();
     }
 
     ctx.restore();
   }
 
-  // ─── Dibujo de los ejes X, Y, Z ──────────────────────────────────────────
+  // ─── Ejes X, Y, Z con positivo y negativo ────────────────────────────────
 
   function drawAxes() {
-    const len = GRID.step * (GRID.count + 1);
+    const n   = GRID_COUNT;
+    const s   = GRID_STEP;
+    const len = n * s + 20;      // Longitud de cada semi-eje
+    const zUp = len * 0.95;      // Longitud del eje Z hacia arriba
+    const zDn = len * 0.38;      // Longitud del eje Z hacia abajo
+
     ctx.save();
     ctx.lineWidth = 2;
+    ctx.lineCap   = 'round';
 
-    // Eje X → dirección (+x, 0, 0) — color naranja
-    const ox = iso(0, 0, 0);
-    const ex = iso(len, 0, 0);
-    drawArrowLine(ox, ex, COLOR.axisX);
-    labelAt(iso(len + 10, 0, 0), 'X', COLOR.axisX);
+    const O = iso(0, 0, 0);      // Origen en pantalla
 
-    // Eje Y → dirección (0, +y, 0) — color verde
-    const ey = iso(0, len * 0.7, 0);
-    drawArrowLine(ox, ey, COLOR.axisY);
-    labelAt(iso(0, len * 0.7 + 14, 0), 'Y', COLOR.axisY);
+    // ── Eje X positivo (rojo, hacia derecha-abajo) ──
+    const xPos = iso( len, 0, 0);
+    const xNeg = iso(-len, 0, 0);
+    drawAxisLine(O, xPos, COLOR.axisX, true);
+    drawAxisLine(O, xNeg, COLOR.axisX, true);
+    axisLabel(iso( len + 16, 0, 0), 'X',  COLOR.axisX);
+    axisLabel(iso(-len - 16, 0, 0), '-X', COLOR.axisX);
 
-    // Eje Z → dirección (0, 0, +z) — color azul
-    const ez = iso(0, 0, len);
-    drawArrowLine(ox, ez, COLOR.axisZ);
-    labelAt(iso(0, 0, len + 10), 'Z', COLOR.axisZ);
+    // ── Eje Y positivo (verde, hacia izquierda-abajo) ──
+    const yPos = iso(0,  len, 0);
+    const yNeg = iso(0, -len, 0);
+    drawAxisLine(O, yPos, COLOR.axisY, true);
+    drawAxisLine(O, yNeg, COLOR.axisY, true);
+    axisLabel(iso(0,  len + 16, 0), 'Y',  COLOR.axisY);
+    axisLabel(iso(0, -len - 16, 0), '-Y', COLOR.axisY);
+
+    // ── Eje Z (azul, vertical) ──
+    const zPos = iso(0, 0,  zUp);
+    const zNeg = iso(0, 0, -zDn);
+    drawAxisLine(O, zPos, COLOR.axisZ, true);
+    drawAxisLine(O, zNeg, COLOR.axisZ, true);
+    axisLabel(iso(0, 0,  zUp + 16), 'Z',  COLOR.axisZ);
+    axisLabel(iso(0, 0, -zDn - 14), '-Z', COLOR.axisZ);
+
+    // ── Punto de origen ──
+    ctx.beginPath();
+    ctx.arc(O.x, O.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
 
     ctx.restore();
   }
 
-  function drawArrowLine(from, to, color) {
-    // Línea principal
+  function drawAxisLine(from, to, color, withArrow) {
     ctx.beginPath();
     ctx.moveTo(from.x, from.y);
     ctx.lineTo(to.x, to.y);
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth   = 2;
     ctx.stroke();
 
-    // Punta de flecha
-    const angle = Math.atan2(to.y - from.y, to.x - from.x);
-    const headLen = 10;
-    ctx.beginPath();
-    ctx.moveTo(to.x, to.y);
-    ctx.lineTo(
-      to.x - headLen * Math.cos(angle - Math.PI / 6),
-      to.y - headLen * Math.sin(angle - Math.PI / 6)
-    );
-    ctx.moveTo(to.x, to.y);
-    ctx.lineTo(
-      to.x - headLen * Math.cos(angle + Math.PI / 6),
-      to.y - headLen * Math.sin(angle + Math.PI / 6)
-    );
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    if (withArrow) {
+      const angle   = Math.atan2(to.y - from.y, to.x - from.x);
+      const headLen = 10;
+      ctx.beginPath();
+      ctx.moveTo(to.x, to.y);
+      ctx.lineTo(
+        to.x - headLen * Math.cos(angle - Math.PI / 6),
+        to.y - headLen * Math.sin(angle - Math.PI / 6)
+      );
+      ctx.moveTo(to.x, to.y);
+      ctx.lineTo(
+        to.x - headLen * Math.cos(angle + Math.PI / 6),
+        to.y - headLen * Math.sin(angle + Math.PI / 6)
+      );
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = 2;
+      ctx.stroke();
+    }
   }
 
-  function labelAt(pos, text, color) {
-    ctx.font = 'bold 13px "Courier New", monospace';
-    ctx.fillStyle = color;
-    ctx.textAlign = 'center';
+  function axisLabel(pos, text, color) {
+    ctx.font         = 'bold 13px "Courier New", monospace';
+    ctx.fillStyle    = color;
+    ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
+    // Sombra para legibilidad sobre la cuadrícula
+    ctx.shadowColor  = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur   = 4;
     ctx.fillText(text, pos.x, pos.y);
+    ctx.shadowBlur   = 0;
   }
 
-  // ─── Dibujo de la sombra de la base en el suelo ──────────────────────────
+  // ─── Base cilíndrica del brazo ────────────────────────────────────────────
 
-  function drawBaseShadow(basePos) {
+  function drawBaseShadow() {
+    const c = iso(0, 0, 0);
     ctx.save();
-    // Elipse de sombra proyectada sobre el plano Y=0
     ctx.beginPath();
-    ctx.ellipse(basePos.x, basePos.y, 55, 20, 0, 0, Math.PI * 2);
+    ctx.ellipse(c.x, c.y, 52 * COS30, 52 * SIN30 * 1.2, 0, 0, Math.PI * 2);
     ctx.fillStyle = COLOR.shadow;
     ctx.fill();
     ctx.restore();
   }
 
-  // ─── Dibujo de la base cilíndrica ────────────────────────────────────────
+  function drawBase() {
+    // El cilindro tiene la base en Z=0 y sube hasta Z=cylH
+    const cylH  = 18;
+    const rx    = 44;
+    const ry    = 16;
 
-  function drawBase(basePos) {
-    const rx = 46, ry = 17;
-    const h  = 18;   // Altura visual del cilindro
+    const top = iso(0, 0, cylH);
+    const bot = iso(0, 0, 0);
 
-    // Cara superior
+    // Cara superior (elipse en Z=cylH)
+    ctx.save();
     ctx.beginPath();
-    ctx.ellipse(basePos.x, basePos.y - h, rx, ry, 0, 0, Math.PI * 2);
-    ctx.fillStyle = COLOR.baseCircle;
+    ctx.ellipse(top.x, top.y, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fillStyle   = COLOR.baseCircle;
     ctx.fill();
     ctx.strokeStyle = COLOR.baseStroke;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth   = 1.5;
     ctx.stroke();
 
-    // Lados del cilindro (dos líneas verticales + arco inferior)
+    // Lados del cilindro
     ctx.beginPath();
-    ctx.moveTo(basePos.x - rx, basePos.y - h);
-    ctx.lineTo(basePos.x - rx, basePos.y);
+    ctx.moveTo(top.x - rx, top.y);
+    ctx.lineTo(bot.x - rx, bot.y);
     ctx.strokeStyle = COLOR.baseStroke;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth   = 1.5;
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.moveTo(basePos.x + rx, basePos.y - h);
-    ctx.lineTo(basePos.x + rx, basePos.y);
+    ctx.moveTo(top.x + rx, top.y);
+    ctx.lineTo(bot.x + rx, bot.y);
     ctx.stroke();
 
-    // Cara inferior (solo arco visible)
+    // Arco inferior visible
     ctx.beginPath();
-    ctx.ellipse(basePos.x, basePos.y, rx, ry, 0, 0, Math.PI);
-    ctx.strokeStyle = COLOR.baseStroke;
+    ctx.ellipse(bot.x, bot.y, rx, ry, 0, 0, Math.PI);
     ctx.lineWidth = 1;
     ctx.stroke();
+
+    ctx.restore();
   }
 
-  // ─── Dibujo del brazo robótico ────────────────────────────────────────────
+  // ─── Brazo robótico ───────────────────────────────────────────────────────
 
   /**
-   * Dibuja el brazo usando los puntos 2D recibidos de la API.
-   * points: lista de {name, pos2d: [px, py], pos3d: [x, y, z]}
+   * points: lista recibida de la API
+   *   cada item: { name, pos2d:[px,py], pos3d:[bx,by,bz] }
+   *
+   * Usamos pos3d para recomponer la posición con la
+   * proyección Z-arriba del renderer (ignoramos pos2d del backend).
    */
   function drawArm(points) {
     if (!points || points.length < 5) return;
 
-    // Extraer posiciones 2D (la API ya las calculó)
-    const pts = points.map(p => ({ name: p.name, x: p.pos2d[0], y: p.pos2d[1] }));
+    // Recomputa posiciones 2D desde pos3d con Z-up
+    const pts = points.map(p => {
+      const [bx, by, bz] = p.pos3d;
+      const s = isoBackend(bx, by, bz);
+      return { name: p.name, x: s.x, y: s.y };
+    });
+
     const [base, shoulder, elbow, wrist, tip] = pts;
 
-    // Sombra + base cilíndrica
-    drawBaseShadow(base);
-    drawBase(base);
+    // Sombra + cilindro base
+    drawBaseShadow();
+    drawBase();
 
-    // ── Segmentos del brazo ──
+    // Segmentos
+    drawSegment(base,     shoulder, 7, COLOR.segment, COLOR.segmentGlow);
+    drawSegment(shoulder, elbow,    5, COLOR.segment, COLOR.segmentGlow);
+    drawSegment(elbow,    wrist,    4, COLOR.segment, COLOR.segmentGlow);
+    drawSegment(wrist,    tip,      3, COLOR.tip,     COLOR.tipGlow);
 
-    // Segmento 1: base → shoulder (más grueso)
-    drawSegment(base, shoulder, 7, COLOR.segment, COLOR.segmentGlow);
-
-    // Segmento 2: shoulder → elbow
-    drawSegment(shoulder, elbow, 5, COLOR.segment, COLOR.segmentGlow);
-
-    // Segmento 3: elbow → wrist
-    drawSegment(elbow, wrist, 4, COLOR.segment, COLOR.segmentGlow);
-
-    // Segmento 4: wrist → tip (pinza)
-    drawSegment(wrist, tip, 3, COLOR.tip, COLOR.tipGlow);
-
-    // ── Articulaciones (círculos) ──
-    drawJoint(base,     10, COLOR.jointStroke, COLOR.baseCircle);
-    drawJoint(shoulder,  8, COLOR.jointStroke, 'rgba(0,255,136,0.2)');
-    drawJoint(elbow,     7, COLOR.jointStroke, 'rgba(0,255,136,0.2)');
-    drawJoint(wrist,     6, COLOR.jointStroke, 'rgba(0,255,136,0.2)');
-
-    // Punta del efector (naranja)
-    drawJoint(tip, 5, COLOR.tip, COLOR.tipGlow);
+    // Articulaciones
+    drawJoint(base,     10, COLOR.jointStroke, 'rgba(0,255,136,0.25)');
+    drawJoint(shoulder,  8, COLOR.jointStroke, 'rgba(0,255,136,0.20)');
+    drawJoint(elbow,     7, COLOR.jointStroke, 'rgba(0,255,136,0.20)');
+    drawJoint(wrist,     6, COLOR.jointStroke, 'rgba(0,255,136,0.20)');
+    drawJoint(tip,       5, COLOR.tip,          COLOR.tipGlow);
   }
 
   function drawSegment(from, to, width, color, glow) {
-    // Resplandor (glow)
+    // Capa de resplandor
     ctx.beginPath();
     ctx.moveTo(from.x, from.y);
-    ctx.lineTo(to.x, to.y);
+    ctx.lineTo(to.x,   to.y);
     ctx.strokeStyle = glow;
-    ctx.lineWidth = width + 6;
-    ctx.lineCap = 'round';
+    ctx.lineWidth   = width + 6;
+    ctx.lineCap     = 'round';
     ctx.stroke();
 
     // Línea principal
     ctx.beginPath();
     ctx.moveTo(from.x, from.y);
-    ctx.lineTo(to.x, to.y);
+    ctx.lineTo(to.x,   to.y);
     ctx.strokeStyle = color;
-    ctx.lineWidth = width;
-    ctx.lineCap = 'round';
+    ctx.lineWidth   = width;
+    ctx.lineCap     = 'round';
     ctx.stroke();
   }
 
   function drawJoint(pos, radius, stroke, fill) {
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = fill;
+    ctx.fillStyle   = fill;
     ctx.fill();
     ctx.strokeStyle = stroke;
-    ctx.lineWidth = 2;
+    ctx.lineWidth   = 2;
     ctx.stroke();
-
-    // Punto central blanco
+    // Punto blanco central
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
     ctx.fillStyle = COLOR.joint;
@@ -296,7 +336,6 @@ const Renderer = (() => {
   // ─── Render principal ─────────────────────────────────────────────────────
 
   function render(points) {
-    // Limpiar con fondo oscuro
     ctx.fillStyle = COLOR.bg;
     ctx.fillRect(0, 0, W, H);
 
@@ -308,7 +347,7 @@ const Renderer = (() => {
     }
   }
 
-  // ─── API pública del módulo ───────────────────────────────────────────────
+  // ─── API pública ──────────────────────────────────────────────────────────
   return { init, render, resize };
 
 })();

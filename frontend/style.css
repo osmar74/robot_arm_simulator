@@ -500,3 +500,99 @@ body {
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
 ::-webkit-scrollbar-thumb { background: var(--border-dim); border-radius: 3px; }
+
+/* =========================================================
+   BARRA DE PROGRESO MEJORADA CON LÍMITES
+   ========================================================= */
+.joint-bar-container {
+  margin-bottom: 10px;
+}
+
+.joint-bar-limits {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+
+.joint-bar-limit-val {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.joint-bar-track {
+  height: 6px;
+  background: var(--bg-button);
+  border-radius: 3px;
+  overflow: visible;
+  position: relative;
+  margin-bottom: 4px;
+}
+
+.joint-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00aa55, #00ff88);
+  border-radius: 3px;
+  transition: width 0.25s ease;
+  position: relative;
+}
+
+/* Triángulo indicador encima del extremo derecho de la barra */
+.joint-bar-fill::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  top: -4px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 6px solid #00ff88;
+}
+
+/* Marcas de límite (líneas verticales en los extremos) */
+.joint-bar-track::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -3px;
+  width: 2px;
+  height: 12px;
+  background: var(--text-secondary);
+  border-radius: 1px;
+  opacity: 0.4;
+}
+
+.joint-bar-track::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: -3px;
+  width: 2px;
+  height: 12px;
+  background: var(--text-secondary);
+  border-radius: 1px;
+  opacity: 0.4;
+}
+
+/* Zona de peligro: cuando el ángulo supera el 90% del límite */
+.joint-bar-fill.near-limit {
+  background: linear-gradient(90deg, #aa5500, #ff6b35);
+}
+
+.joint-bar-fill.near-limit::after {
+  border-top-color: #ff6b35;
+}
+
+.joint-bar-current {
+  display: flex;
+  justify-content: center;
+}
+
+.joint-bar-current-val {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: var(--accent-green);
+  opacity: 0.8;
+}

@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RoboArm Simulator</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body>
 
   <!-- ═══════════════════════════════════════════
@@ -50,9 +52,20 @@
             </div>
             <div class="joint-angle" id="angle-base">0.0°</div>
           </div>
-          <div class="joint-bar-track">
-            <div class="joint-bar-fill" id="bar-base" style="width:50%"></div>
+
+          <div class="joint-bar-container">
+            <div class="joint-bar-limits">
+              <span class="joint-bar-limit-val" id="min-base">-180°</span>
+              <span class="joint-bar-limit-val" id="max-base">180°</span>
+            </div>
+            <div class="joint-bar-track">
+              <div class="joint-bar-fill" id="bar-base" style="width:50%"></div>
+            </div>
+            <div class="joint-bar-current">
+              <span class="joint-bar-current-val" id="cur-base">0°</span>
+            </div>
           </div>
+
           <div class="joint-controls">
             <button class="ctrl-btn" onclick="moveJoint('base', -1)">−</button>
             <button class="ctrl-btn" onclick="moveJoint('base', 1)">+</button>
@@ -78,8 +91,17 @@
             </div>
             <div class="joint-angle" id="angle-shoulder">0.0°</div>
           </div>
-          <div class="joint-bar-track">
-            <div class="joint-bar-fill" id="bar-shoulder" style="width:0%"></div>
+          <div class="joint-bar-container">
+            <div class="joint-bar-limits">
+              <span class="joint-bar-limit-val" id="min-shoulder">0°</span>
+              <span class="joint-bar-limit-val" id="max-shoulder">135°</span>
+            </div>
+            <div class="joint-bar-track">
+              <div class="joint-bar-fill" id="bar-shoulder" style="width:0%"></div>
+            </div>
+            <div class="joint-bar-current">
+              <span class="joint-bar-current-val" id="cur-shoulder">0°</span>
+            </div>
           </div>
           <div class="joint-controls">
             <button class="ctrl-btn" onclick="moveJoint('shoulder', -1)">−</button>
@@ -106,8 +128,17 @@
             </div>
             <div class="joint-angle" id="angle-elbow">0.0°</div>
           </div>
-          <div class="joint-bar-track">
-            <div class="joint-bar-fill" id="bar-elbow" style="width:50%"></div>
+          <div class="joint-bar-container">
+            <div class="joint-bar-limits">
+              <span class="joint-bar-limit-val" id="min-elbow">-90°</span>
+              <span class="joint-bar-limit-val" id="max-elbow">90°</span>
+            </div>
+            <div class="joint-bar-track">
+              <div class="joint-bar-fill" id="bar-elbow" style="width:50%"></div>
+            </div>
+            <div class="joint-bar-current">
+              <span class="joint-bar-current-val" id="cur-elbow">0°</span>
+            </div>
           </div>
           <div class="joint-controls">
             <button class="ctrl-btn" onclick="moveJoint('elbow', -1)">−</button>
@@ -134,8 +165,17 @@
             </div>
             <div class="joint-angle" id="angle-wrist">0.0°</div>
           </div>
-          <div class="joint-bar-track">
-            <div class="joint-bar-fill" id="bar-wrist" style="width:50%"></div>
+          <div class="joint-bar-container">
+            <div class="joint-bar-limits">
+              <span class="joint-bar-limit-val" id="min-wrist">-180°</span>
+              <span class="joint-bar-limit-val" id="max-wrist">180°</span>
+            </div>
+            <div class="joint-bar-track">
+              <div class="joint-bar-fill" id="bar-wrist" style="width:50%"></div>
+            </div>
+            <div class="joint-bar-current">
+              <span class="joint-bar-current-val" id="cur-wrist">0°</span>
+            </div>
           </div>
           <div class="joint-controls">
             <button class="ctrl-btn" onclick="moveJoint('wrist', -1)">−</button>
@@ -190,4 +230,5 @@
   <script src="/static/js/robot.js"></script>
 
 </body>
+
 </html>

@@ -23,7 +23,7 @@ window.addEventListener('resize', () => {
  */
 async function fetchState() {
   try {
-    const res  = await fetch('/api/state');
+    const res = await fetch('/api/state');
     const data = await res.json();
     updateUI(data);
   } catch (err) {
@@ -37,14 +37,14 @@ async function fetchState() {
  */
 async function moveJoint(jointName, direction) {
   const stepSelect = document.getElementById(`step-${jointName}`);
-  const step  = parseFloat(stepSelect ? stepSelect.value : 10);
+  const step = parseFloat(stepSelect ? stepSelect.value : 10);
   const delta = step * direction;
 
   try {
     const res = await fetch('/api/move', {
-      method:  'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ joint: jointName, delta: delta })
+      body: JSON.stringify({ joint: jointName, delta: delta })
     });
 
     const data = await res.json();
@@ -63,7 +63,7 @@ async function moveJoint(jointName, direction) {
  */
 async function resetArm() {
   try {
-    const res  = await fetch('/api/reset', { method: 'POST' });
+    const res = await fetch('/api/reset', { method: 'POST' });
     const data = await res.json();
     updateUI(data);
     showFlash('Brazo restablecido a posición inicial');
@@ -90,10 +90,10 @@ function updateUI(data) {
 
   // Actualizar ángulos y barras de cada articulación
   if (joints) {
-    updateJointCard('base',     joints.base);
+    updateJointCard('base', joints.base);
     updateJointCard('shoulder', joints.shoulder);
-    updateJointCard('elbow',    joints.elbow);
-    updateJointCard('wrist',    joints.wrist);
+    updateJointCard('elbow', joints.elbow);
+    updateJointCard('wrist', joints.wrist);
   }
 
   // Actualizar coordenadas 3D del efector final (tip)
@@ -126,18 +126,38 @@ function updateJointCard(name, jointData) {
   if (!jointData) return;
 
   const angleEl = document.getElementById(`angle-${name}`);
-  const barEl   = document.getElementById(`bar-${name}`);
+  const barEl = document.getElementById(`bar-${name}`);
+  const curEl = document.getElementById(`cur-${name}`);
+  const minEl = document.getElementById(`min-${name}`);
+  const maxEl = document.getElementById(`max-${name}`);
 
+  // Ángulo principal (esquina derecha de la tarjeta)
   if (angleEl) {
     angleEl.textContent = jointData.angle.toFixed(1) + '°';
   }
 
+  // Etiquetas de límites
+  if (minEl) minEl.textContent = jointData.min_angle + '°';
+  if (maxEl) maxEl.textContent = jointData.max_angle + '°';
+
+  // Valor actual debajo de la barra
+  if (curEl) {
+    curEl.textContent = jointData.angle.toFixed(1) + '°';
+  }
+
+  // Barra de progreso normalizada al rango min-max
   if (barEl) {
     const range = jointData.max_angle - jointData.min_angle;
-    const pct   = range > 0
+    const pct = range > 0
       ? ((jointData.angle - jointData.min_angle) / range) * 100
       : 50;
-    barEl.style.width = Math.max(2, pct) + '%';
+
+    const clampedPct = Math.max(1, Math.min(99, pct));
+    barEl.style.width = clampedPct + '%';
+
+    // Zona de peligro: más del 90% o menos del 10% del rango
+    const nearLimit = pct >= 90 || pct <= 10;
+    barEl.classList.toggle('near-limit', nearLimit);
   }
 }
 
@@ -151,8 +171,8 @@ let flashTimer = null;
  */
 function showFlash(message, isError = false) {
   const el = document.getElementById('flash-msg');
-  el.textContent  = message;
-  el.className    = 'flash-msg show' + (isError ? ' error' : '');
+  el.textContent = message;
+  el.className = 'flash-msg show' + (isError ? ' error' : '');
 
   if (flashTimer) clearTimeout(flashTimer);
   flashTimer = setTimeout(() => {
